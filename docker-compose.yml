@@ -1,0 +1,65 @@
+version: '3'
+services:
+  postgres:
+    container_name: postgres
+    image: postgres:alpine
+    restart: unless-stopped
+    volumes:
+     - ./postgresdata:/var/lib/postgresql/data
+     - ./init_data/init.sql:/docker-entrypoint-initdb.d/init.sql
+    # These will be used in homeserver.yaml later on
+    environment:
+     - POSTGRES_PASSWORD=STRONGPASSWORD
+    networks:
+      services.network:
+     
+  element:
+    container_name: element
+    ports:
+      - 8007:80
+    image: vectorim/element-web:latest
+    restart: unless-stopped
+    volumes:
+      - ./element/config.json:/app/config.json
+    networks:
+      twroa.network:
+        
+  synapse:
+    container_name: synapse
+    ports:
+      - 8008:8008
+    image: matrixdotorg/synapse:latest
+    restart: unless-stopped
+    volumes:
+     - ./synapse:/data
+    links:
+     - postgres
+    networks:
+      services.network:
+
+  nginx:
+    image: nginx:stable-alpine
+    container_name: nginx
+    restart: always 
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./nginx/:/etc/nginx/
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      services.network:
+
+
+networks:
+  services.network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.20.0/24
